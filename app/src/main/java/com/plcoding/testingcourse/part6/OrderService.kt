@@ -18,4 +18,5 @@ class OrderService(
             emailClient.send(email)
         }
     }
+
 }
