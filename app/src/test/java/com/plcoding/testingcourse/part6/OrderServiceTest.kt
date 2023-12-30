@@ -1,6 +1,8 @@
 package com.plcoding.testingcourse.part6
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
@@ -9,32 +11,43 @@ import org.junit.jupiter.api.Test
 
 
 class OrderServiceTest {
-    private lateinit var auth: FirebaseAuth
-    private lateinit var emailClient: EmailClient
     private lateinit var orderService: OrderService
+    private lateinit var firebaseAuth: FirebaseAuth
+    private lateinit var emailClient: EmailClient
+
+
 
 
     @BeforeEach
     fun setUp() {
-        auth = mockk(relaxed = true)
+        val firebaseUser = mockk<FirebaseUser>(relaxed = true) {
+            every { isAnonymous } returns false
+        }
+        firebaseAuth = mockk(relaxed = true) {
+            every { currentUser } returns firebaseUser
+        }
         emailClient = mockk(relaxed = true)
-        orderService = OrderService(auth, emailClient)
-
-    }
-    @Test
-    fun `Place order email and product name check`() = runBlocking {
-
-        orderService.placeOrder(
-            customerEmail = "ddd@gmail.com",
-            productName = "ice cream"
+        orderService = OrderService(
+            auth = firebaseAuth,
+            emailClient = emailClient
         )
+    }
+
+    @Test
+    fun `Place order with non-anonymous user, email sent`() = runBlocking {
+        val customer = Customer(
+            id = 1,
+            email = "12345@example.com"
+        )
+
+        orderService.placeOrder(customerEmail = customer.email, productName = "ice cream")
 
         verify {
           emailClient.send(
               Email(
                   subject = "Order Confirmation",
                   content ="Thank you for your order of ice cream.",
-                  recipient = "ddd@gmail.com"
+                  recipient = customer.email
               )
           )
         }
